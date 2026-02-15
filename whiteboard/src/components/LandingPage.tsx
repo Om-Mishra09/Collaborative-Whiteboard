@@ -7,6 +7,10 @@ const LandingPage: React.FC = () => {
         keycloak.login();
     };
 
+    const handleSignup = () => {
+        keycloak.register();
+    };
+
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: {
@@ -59,14 +63,24 @@ const LandingPage: React.FC = () => {
                     <div className="text-2xl md:text-3xl font-bold text-slate-900">
                         Dentrite
                     </div>
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleLogin}
-                        className="px-6 py-2.5 rounded-lg bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors duration-200 shadow-sm"
-                    >
-                        Login
-                    </motion.button>
+                    <div className="flex items-center gap-3">
+                        <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleSignup}
+                            className="px-6 py-2.5 rounded-lg border-2 border-slate-300 text-slate-700 font-semibold hover:border-slate-400 hover:bg-slate-50 transition-colors duration-200"
+                        >
+                            Sign Up
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleLogin}
+                            className="px-6 py-2.5 rounded-lg bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-colors duration-200 shadow-sm"
+                        >
+                            Login
+                        </motion.button>
+                    </div>
                 </div>
             </motion.nav>
 
