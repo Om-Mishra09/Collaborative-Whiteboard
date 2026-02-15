@@ -9,7 +9,8 @@ import Chat from './components/Chat';
 const SOCKET_URL = 'http://localhost:4000';
 
 const Whiteboard = () => {
-    const { roomId } = useParams<{ roomId: string }>();
+    const { sessionId } = useParams<{ sessionId: string }>();
+    const roomId = sessionId; // Keep roomId for backward compatibility with socket events
     const navigate = useNavigate();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);

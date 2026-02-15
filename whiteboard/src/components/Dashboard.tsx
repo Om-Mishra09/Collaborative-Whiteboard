@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { v4 as uuid } from 'uuid';
 import keycloak from '../keycloak';
 
 const Dashboard: React.FC = () => {
@@ -15,15 +16,15 @@ const Dashboard: React.FC = () => {
     }, []);
 
     const createSession = () => {
-        // Generate a random session ID (simple implementation)
-        const sessionId = Math.random().toString(36).substring(2, 10);
-        navigate(`/session/${sessionId}`);
+        // Generate a random session ID using uuid
+        const sessionId = uuid();
+        navigate(`/whiteboard/${sessionId}`);
     };
 
     const joinSession = (e: React.FormEvent) => {
         e.preventDefault();
         if (joinSessionId.trim()) {
-            navigate(`/session/${joinSessionId.trim()}`);
+            navigate(`/whiteboard/${joinSessionId.trim()}`);
         }
     };
 
