@@ -138,6 +138,16 @@ const Whiteboard = () => {
         fabricCanvas.freeDrawingBrush.width = brushSize;
     }, [color, brushSize, fabricCanvas]);
 
+    // Initialize history with empty canvas state so Undo can revert to a blank canvas
+    useEffect(() => {
+        if (!fabricCanvas) return;
+        if (history.length === 0) {
+            const emptyState = JSON.stringify(fabricCanvas.toJSON());
+            setHistory([emptyState]);
+            setHistoryStep(0);
+        }
+    }, [fabricCanvas]);
+
     useEffect(() => {
         if (!fabricCanvas || !socket || !roomId) return;
 
