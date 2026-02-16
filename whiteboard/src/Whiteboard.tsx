@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { io, Socket } from 'socket.io-client';
 import { useParams, useNavigate } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
 import jsPDF from 'jspdf';
 import keycloak from './keycloak';
 import Chat from './components/Chat';
@@ -300,6 +301,17 @@ const Whiteboard = () => {
                 </div>
 
                 <div className="vr mx-2"></div>
+
+                <button
+                    type="button"
+                    onClick={() => setChatOpen((prev) => !prev)}
+                    className="btn btn-sm rounded-circle shadow-sm border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 d-flex align-items-center justify-content-center"
+                    style={{ width: '36px', height: '36px' }}
+                    title={chatOpen ? 'Close chat' : 'Open chat'}
+                    aria-label={chatOpen ? 'Close chat' : 'Open chat'}
+                >
+                    <MessageSquare size={18} strokeWidth={2} />
+                </button>
 
                 <button className="btn btn-dark btn-sm" onClick={logout}>Logout</button>
             </div>

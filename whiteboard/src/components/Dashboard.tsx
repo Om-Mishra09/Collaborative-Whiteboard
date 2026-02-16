@@ -16,15 +16,14 @@ const Dashboard: React.FC = () => {
     }, []);
 
     const createSession = () => {
-        // Generate a random session ID using uuid
         const sessionId = uuid();
-        navigate(`/whiteboard/${sessionId}`);
+        navigate(`/session/${sessionId}`);
     };
 
     const joinSession = (e: React.FormEvent) => {
         e.preventDefault();
         if (joinSessionId.trim()) {
-            navigate(`/whiteboard/${joinSessionId.trim()}`);
+            navigate(`/session/${joinSessionId.trim()}`);
         }
     };
 

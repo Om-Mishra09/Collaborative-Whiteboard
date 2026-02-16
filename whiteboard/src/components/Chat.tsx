@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { MessageSquare, SendHorizontal } from 'lucide-react';
 import { Socket } from 'socket.io-client';
 
 interface ChatProps {
@@ -76,10 +77,13 @@ const Chat: React.FC<ChatProps> = ({ socket, roomId, username, isOpen, onClose, 
         <div className="position-absolute bottom-0 end-0 m-3" style={{ zIndex: 1000, width: '300px' }}>
             {!isOpen && (
                 <button
-                    className="btn btn-primary rounded-circle shadow-lg p-3 float-end"
+                    type="button"
                     onClick={onOpen}
+                    className="rounded-circle shadow-sm border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 d-flex align-items-center justify-content-center float-end"
+                    style={{ width: '56px', height: '56px' }}
+                    aria-label="Open chat"
                 >
-                    <i className="bi bi-chat-dots-fill fs-4"></i>
+                    <MessageSquare size={24} strokeWidth={2} />
                 </button>
             )}
 
@@ -124,7 +128,7 @@ const Chat: React.FC<ChatProps> = ({ socket, roomId, username, isOpen, onClose, 
                     </div>
 
                     <div className="card-footer p-2">
-                        <form onSubmit={sendMessage} className="d-flex gap-2">
+                        <form onSubmit={sendMessage} className="d-flex gap-2 align-items-center">
                             <input
                                 type="text"
                                 className="form-control form-control-sm"
@@ -132,8 +136,14 @@ const Chat: React.FC<ChatProps> = ({ socket, roomId, username, isOpen, onClose, 
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                             />
-                            <button type="submit" className="btn btn-primary btn-sm">
-                                <i className="bi bi-send-fill"></i>
+                            <button
+                                type="submit"
+                                className="btn btn-sm rounded border-0 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 shadow-sm d-flex align-items-center justify-content-center"
+                                style={{ width: '36px', height: '36px', minWidth: '36px' }}
+                                aria-label="Send message"
+                                disabled={!newMessage.trim()}
+                            >
+                                <SendHorizontal size={18} strokeWidth={2} />
                             </button>
                         </form>
                     </div>

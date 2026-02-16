@@ -13,7 +13,7 @@ function App({ initialAuth }: { initialAuth: boolean }) {
     <Router>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/whiteboard/:sessionId" element={<Whiteboard />} />
+        <Route path="/session/:sessionId" element={<Whiteboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
