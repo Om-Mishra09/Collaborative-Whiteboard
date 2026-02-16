@@ -18,6 +18,7 @@ const Whiteboard = () => {
     const [brushSize, setBrushSize] = useState(5);
     const [socket, setSocket] = useState<Socket | null>(null);
     const [username, setUsername] = useState<string>('User');
+    const [chatOpen, setChatOpen] = useState(false);
 
     // History for Undo/Redo
     const [history, setHistory] = useState<string[]>([]);
@@ -307,7 +308,14 @@ const Whiteboard = () => {
             <canvas ref={canvasRef} />
 
             {/* Chat Component */}
-            <Chat socket={socket} roomId={roomId || ''} username={username} />
+            <Chat
+                socket={socket}
+                roomId={roomId || ''}
+                username={username}
+                isOpen={chatOpen}
+                onClose={() => setChatOpen(false)}
+                onOpen={() => setChatOpen(true)}
+            />
         </div>
     );
 };
