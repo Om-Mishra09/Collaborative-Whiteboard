@@ -1,19 +1,35 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import Dashboard from './components/Dashboard';
 import LandingPage from './components/LandingPage';
 import Whiteboard from './Whiteboard';
 
-function App({ initialAuth }: { initialAuth: boolean }) {
-
-  if (!initialAuth) {
-    return <LandingPage />;
-  }
-
+function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/session/:sessionId" element={<Whiteboard />} />
+        <Route path="/" element={
+          <>
+            <SignedOut>
+              <LandingPage />
+            </SignedOut>
+            <SignedIn>
+              <Dashboard />
+            </SignedIn>
+          </>
+        } />
+
+        <Route path="/session/:sessionId" element={
+          <>
+            <SignedIn>
+              <Whiteboard />
+            </SignedIn>
+            <SignedOut>
+              <RedirectToSignIn />
+            </SignedOut>
+          </>
+        } />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

@@ -1,25 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { io, Socket } from 'socket.io-client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Download, Trash2, Undo2, Image as ImageIcon, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
-import keycloak from './keycloak';
 import Chat from './components/Chat';
+import { useUser, UserButton } from '@clerk/clerk-react';
 
-const SOCKET_URL = 'http://localhost:4000';
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+
+// Moved outside the component to keep the code clean and prevent re-rendering issues
+const getRandomColor = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return '#' + '00000'.substring(0, 6 - c.length) + c;
+};
 
 const Whiteboard = () => {
     const { sessionId } = useParams<{ sessionId: string }>();
-    const roomId = sessionId; // Keep roomId for backward compatibility with socket events
+    const roomId = sessionId;
     const navigate = useNavigate();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
     const [color, setColor] = useState('#000000');
     const [brushSize, setBrushSize] = useState(5);
     const [socket, setSocket] = useState<Socket | null>(null);
-    const [username, setUsername] = useState<string>('User');
     const [chatOpen, setChatOpen] = useState(false);
+
+    // Clerk instantly provides the logged-in user's data!
+    const { user } = useUser();
+    const username = user?.firstName || 'User';
 
     // History for Undo/Redo
     const [history, setHistory] = useState<string[]>([]);
@@ -28,20 +41,11 @@ const Whiteboard = () => {
     // Remote Cursors
     const cursorsRef = useRef<Map<string, fabric.Group>>(new Map());
 
-    // Get Username
-    useEffect(() => {
-        if (keycloak.tokenParsed) {
-            const name = (keycloak.tokenParsed as any).name || (keycloak.tokenParsed as any).preferred_username || 'User';
-            setUsername(name);
-        }
-    }, []);
-
     useEffect(() => {
         if (!roomId) {
             navigate('/');
             return;
         }
-
 
         const newSocket = io(SOCKET_URL);
         setSocket(newSocket);
@@ -52,9 +56,8 @@ const Whiteboard = () => {
             isDrawingMode: true,
             width: window.innerWidth,
             height: window.innerHeight,
-            backgroundColor: 'white',
+            backgroundColor: 'transparent',
         });
-
 
         canvas.freeDrawingBrush.color = color;
         canvas.freeDrawingBrush.width = brushSize;
@@ -72,7 +75,8 @@ const Whiteboard = () => {
 
         newSocket.on('clear', () => {
             canvas.clear();
-            canvas.backgroundColor = 'white';
+            canvas.backgroundColor = 'transparent';
+            canvas.renderAll();
         });
 
         newSocket.on('cursor-move', ({ username: remoteUser, x, y, socketId }) => {
@@ -131,8 +135,7 @@ const Whiteboard = () => {
             canvas.dispose();
             window.removeEventListener('resize', handleResize);
         };
-    }, [roomId, navigate]); 
-
+    }, [roomId, navigate]);
 
     useEffect(() => {
         if (!fabricCanvas) return;
@@ -140,7 +143,6 @@ const Whiteboard = () => {
         fabricCanvas.freeDrawingBrush.width = brushSize;
     }, [color, brushSize, fabricCanvas]);
 
-    // Initialize history with empty canvas state so Undo can revert to a blank canvas
     useEffect(() => {
         if (!fabricCanvas) return;
         if (history.length === 0) {
@@ -184,39 +186,40 @@ const Whiteboard = () => {
         };
     }, [fabricCanvas, socket, history, historyStep, roomId, username]);
 
-
-    const getRandomColor = (str: string) => {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            hash = str.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-        return '#' + '00000'.substring(0, 6 - c.length) + c;
-    };
-
     // --- Toolbar Actions ---
 
     const clearBoard = () => {
         if (fabricCanvas && socket && roomId) {
             fabricCanvas.clear();
-            fabricCanvas.backgroundColor = 'white';
+            fabricCanvas.backgroundColor = 'transparent';
+            fabricCanvas.renderAll();
             socket.emit('clear', roomId);
         }
     };
 
+    const withWhiteBackground = (action: () => void) => {
+        if (!fabricCanvas) return;
+        const originalBg = fabricCanvas.backgroundColor;
+        fabricCanvas.backgroundColor = 'white';
+        fabricCanvas.renderAll();
+        action();
+        fabricCanvas.backgroundColor = originalBg;
+        fabricCanvas.renderAll();
+    };
+
     const saveImage = () => {
-        if (fabricCanvas) {
-            const dataURL = fabricCanvas.toDataURL({ format: 'png' });
+        withWhiteBackground(() => {
+            const dataURL = fabricCanvas!.toDataURL({ format: 'png' });
             const link = document.createElement('a');
             link.href = dataURL;
             link.download = `whiteboard-session-${roomId}.png`;
             link.click();
-        }
+        });
     };
 
     const savePDF = () => {
-        if (fabricCanvas) {
-            const imgData = fabricCanvas.toDataURL({ format: 'png' });
+        withWhiteBackground(() => {
+            const imgData = fabricCanvas!.toDataURL({ format: 'png' });
             const pdf = new jsPDF({
                 orientation: 'landscape',
             });
@@ -226,7 +229,7 @@ const Whiteboard = () => {
 
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
             pdf.save(`whiteboard-session-${roomId}.pdf`);
-        }
+        });
     };
 
     const undo = () => {
@@ -235,7 +238,6 @@ const Whiteboard = () => {
             setHistoryStep(prevStep);
             fabricCanvas.loadFromJSON(history[prevStep], () => {
                 fabricCanvas.renderAll();
-                // Important: Re-enable drawing mode after loading JSON
                 fabricCanvas.isDrawingMode = true;
             });
         }
@@ -245,79 +247,136 @@ const Whiteboard = () => {
         navigate('/');
     };
 
-    const logout = () => {
-        keycloak.logout();
-    };
-
     return (
-        <div className="position-relative w-100 vh-100 overflow-hidden">
-            {/* Toolbar */}
-            <div className="position-absolute top-0 start-50 translate-middle-x mt-3 bg-light p-2 rounded shadow d-flex gap-2 align-items-center" style={{ zIndex: 10 }}>
+        <div className="relative w-full h-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
+            {/* Subtle Dot Grid Background */}
+            <div
+                className="absolute inset-0 z-0 opacity-40 pointer-events-none"
+                style={{
+                    backgroundImage: 'radial-gradient(#cbd5e1 1.5px, transparent 0)',
+                    backgroundSize: '24px 24px'
+                }}
+            />
 
-                <button className="btn btn-outline-dark btn-sm" onClick={leaveSession} title="Back to Dashboard">
-                    <i className="bi bi-arrow-left"></i> Back
-                </button>
-
-                <div className="vr mx-2"></div>
-
-                <span className="badge bg-secondary me-2">Session: {roomId}</span>
-
-                {/* Colors */}
-                <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="form-control form-control-color"
-                    title="Choose Color"
-                />
-
-                {/* Brush Size */}
-                <select
-                    className="form-select form-select-sm"
-                    value={brushSize}
-                    onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    style={{ width: '80px' }}
+            {/* Action Bar (Top Left) */}
+            <div className="fixed top-6 left-6 z-10 flex items-center gap-4 bg-white/80 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-sm border border-slate-200/60 drop-shadow-sm transition-all hover:shadow-md">
+                <button
+                    onClick={leaveSession}
+                    className="p-2 -ml-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+                    title="Back to Dashboard"
                 >
-                    <option value="2">Thin</option>
-                    <option value="5">Normal</option>
-                    <option value="10">Thick</option>
-                    <option value="20">Marker</option>
-                </select>
-
-                <div className="vr mx-2"></div>
-
-                {/* Tools */}
-                <button className="btn btn-outline-secondary btn-sm" onClick={undo} disabled={historyStep <= 0}>Undo</button>
-                <button className="btn btn-outline-danger btn-sm" onClick={clearBoard}>Clear</button>
-
-                <div className="dropdown d-inline-block">
-                    <button className="btn btn-primary btn-sm dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        Export
-                    </button>
-                    <ul className="dropdown-menu" aria-labelledby="exportDropdown">
-                        <li><button className="dropdown-item" onClick={saveImage}>Save as PNG</button></li>
-                        <li><button className="dropdown-item" onClick={savePDF}>Save as PDF</button></li>
-                    </ul>
+                    <ArrowLeft size={20} />
+                </button>
+                <div className="w-px h-8 bg-slate-200"></div>
+                <div className="flex flex-col pr-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1.5">Session</span>
+                    <span className="text-sm font-semibold text-slate-700 font-mono bg-slate-100/80 border border-slate-200 px-2 py-0.5 rounded-md leading-none">{roomId}</span>
                 </div>
+            </div>
 
-                <div className="vr mx-2"></div>
+            {/* Utility Bar (Top Right) */}
+            <div className="fixed top-6 right-6 z-10 flex items-center gap-1.5 bg-white/80 backdrop-blur-xl px-3 py-3 rounded-2xl shadow-sm border border-slate-200/60 drop-shadow-sm transition-all hover:shadow-md">
+                <button
+                    onClick={undo}
+                    disabled={historyStep <= 0}
+                    className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                    title="Undo"
+                >
+                    <Undo2 size={20} strokeWidth={2.5} />
+                </button>
 
                 <button
-                    type="button"
-                    onClick={() => setChatOpen((prev) => !prev)}
-                    className="btn btn-sm rounded-circle shadow-sm border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 d-flex align-items-center justify-content-center"
-                    style={{ width: '36px', height: '36px' }}
-                    title={chatOpen ? 'Close chat' : 'Open chat'}
-                    aria-label={chatOpen ? 'Close chat' : 'Open chat'}
+                    onClick={clearBoard}
+                    className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                    title="Clear Board"
                 >
-                    <MessageSquare size={18} strokeWidth={2} />
+                    <Trash2 size={20} strokeWidth={2.5} />
                 </button>
 
-                <button className="btn btn-dark btn-sm" onClick={logout}>Logout</button>
+                <div className="w-px h-6 bg-slate-200 mx-2"></div>
+
+                {/* Export Dropdown Group */}
+                <div className="relative group">
+                    <button className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors flex items-center gap-1" title="Export">
+                        <Download size={20} strokeWidth={2.5} />
+                    </button>
+                    {/* Hover Dropdown */}
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-xl shadow-slate-200/50 rounded-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right scale-95 group-hover:scale-100 z-50">
+                        <button onClick={saveImage} className="w-full text-left px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-600 rounded-lg flex items-center gap-2.5 transition-colors">
+                            <ImageIcon size={18} className="text-slate-400" /> Save as PNG
+                        </button>
+                        <button onClick={savePDF} className="w-full text-left px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-primary-600 rounded-lg flex items-center gap-2.5 transition-colors mt-0.5">
+                            <FileText size={18} className="text-slate-400" /> Save as PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div className="w-px h-6 bg-slate-200 mx-2"></div>
+
+                <button
+                    onClick={() => setChatOpen((prev) => !prev)}
+                    className={`p-2 rounded-xl transition-colors relative ${chatOpen ? 'bg-primary-50 text-primary-600' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}`}
+                    title={chatOpen ? 'Close chat' : 'Open chat'}
+                >
+                    <MessageSquare size={20} strokeWidth={2.5} />
+                </button>
+
+                <div className="w-px h-6 bg-slate-200 mx-2"></div>
+
+                <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center p-0.5 mr-1">
+                    <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-full h-full" } }} />
+                </div>
+            </div>
+
+            {/* Main Toolbar (Bottom Center) */}
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-10 flex items-center p-2.5 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 drop-shadow-sm transition-all hover:shadow-2xl">
+                {/* Custom Color Picker Preset Colors */}
+                <div className="flex items-center gap-2 px-3 border-r border-slate-200 pr-5">
+                    {['#0f172a', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'].map((c) => (
+                        <button
+                            key={c}
+                            onClick={() => setColor(c)}
+                            className={`w-8 h-8 rounded-full transition-all hover:scale-110 shadow-sm ${color === c ? 'ring-4 ring-offset-2 ring-slate-200 scale-110' : 'ring-1 ring-slate-200 hover:ring-2'}`}
+                            style={{ backgroundColor: c }}
+                            title={c}
+                        />
+                    ))}
+                    {/* Fallback Custom Color Picker */}
+                    <div className="relative w-8 h-8 overflow-hidden rounded-full ring-1 ring-slate-200 shadow-sm ml-1 cursor-pointer transition-transform hover:scale-110 bg-gradient-to-tr from-pink-400 via-purple-400 to-blue-400 flex items-center justify-center">
+                        <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => setColor(e.target.value)}
+                            className="absolute -top-4 -left-4 w-16 h-16 cursor-pointer opacity-0"
+                            title="Custom Color"
+                        />
+                    </div>
+                </div>
+
+                {/* Custom Brush Sizes */}
+                <div className="flex items-center gap-1.5 px-3 pl-4">
+                    {[
+                        { size: 2, label: 'Thin' },
+                        { size: 5, label: 'Normal' },
+                        { size: 10, label: 'Thick' },
+                        { size: 20, label: 'Marker' }
+                    ].map((b) => (
+                        <button
+                            key={b.size}
+                            onClick={() => setBrushSize(b.size)}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${brushSize === b.size ? 'bg-slate-100 text-slate-800 shadow-inner ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
+                            title={b.label}
+                        >
+                            <div className="bg-current rounded-full" style={{ width: Math.max(4, b.size), height: Math.max(4, b.size) }}></div>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Canvas */}
-            <canvas ref={canvasRef} />
+            <div className="relative w-full h-full z-[1]">
+                <canvas ref={canvasRef} />
+            </div>
 
             {/* Chat Component */}
             <Chat

@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuid } from 'uuid';
-import keycloak from '../keycloak';
+import { useUser, UserButton } from '@clerk/clerk-react';
+import { motion, type Variants } from 'framer-motion';
+import { Plus, Users, ArrowRight, Sparkles } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const [joinSessionId, setJoinSessionId] = useState('');
-    const [userName, setUserName] = useState<string>('User');
 
-    useEffect(() => {
-        if (keycloak.tokenParsed) {
-            const name = (keycloak.tokenParsed as any).name || (keycloak.tokenParsed as any).preferred_username || 'User';
-            setUserName(name);
-        }
-    }, []);
+    // Clerk instantly provides the logged-in user's data
+    const { user } = useUser();
+    const userName = user?.firstName || 'User';
 
     const createSession = () => {
         const sessionId = uuid();
@@ -27,100 +25,152 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    const handleLogout = () => {
-        keycloak.logout();
+    // Animation variants
+    const containerVariants: Variants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+        }
+    };
+
+    const itemVariants: Variants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: { duration: 0.5, ease: "easeOut" }
+        }
     };
 
     return (
-        <div className="d-flex flex-column min-vh-100 bg-light">
-            {/* Navbar */}
-            <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-                <div className="container">
-                    <span className="navbar-brand fw-bold">Dentrite Whiteboard</span>
-                    <div className="d-flex align-items-center text-white">
-                        <span className="me-3">Hello, {userName}</span>
-                        <button className="btn btn-outline-light btn-sm" onClick={handleLogout}>Logout</button>
+        <div className="min-h-screen flex flex-col relative overflow-hidden font-sans text-slate-900 bg-slate-50">
+            {/* --- Background Elements (-z-10) --- */}
+            <div
+                className="absolute inset-0 -z-10 opacity-40 pointer-events-none"
+                style={{
+                    backgroundImage: 'radial-gradient(#cbd5e1 1.5px, transparent 0)',
+                    backgroundSize: '32px 32px'
+                }}
+            />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl h-96 bg-gradient-to-tr from-primary-400/30 via-purple-500/30 to-blue-500/30 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+
+            {/* --- Navbar Section --- */}
+            <div className="w-full max-w-5xl mx-auto mt-6 px-4 z-10 flex-shrink-0">
+                <motion.nav
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="px-6 py-3 bg-white/70 backdrop-blur-xl border border-white/50 shadow-sm rounded-full flex items-center justify-between"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold shadow-md shadow-primary-500/30">
+                            <Sparkles className="w-5 h-5" />
+                        </div>
+                        <span className="font-bold text-xl tracking-tight text-slate-800">Dentrite</span>
                     </div>
-                </div>
-            </nav>
-
-            <div className="container mt-5 flex-grow-1">
-                <div className="text-center mb-5">
-                    <h1 className="display-5 fw-bold text-dark">Welcome back, {userName}!</h1>
-                    <p className="lead text-muted">Ready to collaborate? Choose an option below.</p>
-                </div>
-
-                <div className="row justify-content-center g-4">
-                    {/* Create Session Card */}
-                    <div className="col-md-5">
-                        <div className="card h-100 shadow border-0 hover-shadow transition-all">
-                            <div className="card-body text-center p-5">
-                                <div className="mb-4 text-primary">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" className="bi bi-plus-circle-fill" viewBox="0 0 16 16">
-                                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3v-3z" />
-                                    </svg>
-                                </div>
-                                <h3 className="card-title fw-bold mb-3">Create New Session</h3>
-                                <p className="card-text text-muted mb-4">
-                                    Start a fresh whiteboard session and invite others to join you instantly.
-                                </p>
-                                <button
-                                    className="btn btn-primary btn-lg w-100 rounded-pill"
-                                    onClick={createSession}
-                                >
-                                    Create Session
-                                </button>
-                            </div>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm font-medium text-slate-500 hidden sm:inline-block bg-slate-100 px-3 py-1.5 rounded-full">
+                            Welcome, <span className="text-slate-800 font-semibold">{userName}</span>
+                        </span>
+                        <div className="w-10 h-10 rounded-full bg-slate-100 p-0.5 border border-slate-200">
+                            <UserButton
+                                afterSignOutUrl="/"
+                                appearance={{ elements: { avatarBox: "w-full h-full" } }}
+                            />
                         </div>
                     </div>
-
-                    {/* Join Session Card */}
-                    <div className="col-md-5">
-                        <div className="card h-100 shadow border-0 hover-shadow transition-all">
-                            <div className="card-body text-center p-5">
-                                <div className="mb-4 text-success">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" className="bi bi-people-fill" viewBox="0 0 16 16">
-                                        <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7Zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-5.784 6A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216ZM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                                    </svg>
-                                </div>
-                                <h3 className="card-title fw-bold mb-3">Join Existing Session</h3>
-                                <p className="card-text text-muted mb-4">
-                                    Enter a Session ID to jump into your team's ongoing collaboration.
-                                </p>
-                                <form onSubmit={joinSession}>
-                                    <div className="mb-3">
-                                        <input
-                                            type="text"
-                                            className="form-control form-control-lg text-center bg-light border-0"
-                                            placeholder="Enter Session ID"
-                                            value={joinSessionId}
-                                            onChange={(e) => setJoinSessionId(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        className="btn btn-success btn-lg w-100 rounded-pill"
-                                        disabled={!joinSessionId.trim()}
-                                    >
-                                        Join Session
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </motion.nav>
             </div>
 
-            <style>{`
-        .hover-shadow:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 1rem 3rem rgba(0,0,0,.175)!important;
-        }
-        .transition-all {
-          transition: all 0.3s ease;
-        }
-      `}</style>
+            {/* --- Main Content Area --- */}
+            <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="flex-1 flex flex-col items-center justify-center w-full max-w-4xl mx-auto z-10 px-6"
+            >
+                {/* Hero Text */}
+                <div className="flex flex-col items-center text-center mb-12 mt-auto pt-20">
+                    <motion.h1 variants={itemVariants} className="text-5xl sm:text-6xl font-extrabold tracking-tight mb-4 text-slate-900">
+                        Where teams <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-purple-600">create together.</span>
+                    </motion.h1>
+                    <motion.p variants={itemVariants} className="text-xl sm:text-2xl text-slate-500 max-w-2xl font-medium">
+                        Launch a new infinite canvas or jump back into a recent project.
+                    </motion.p>
+                </div>
+
+                {/* Action Buttons */}
+                <motion.div variants={itemVariants} className="flex flex-col md:flex-row gap-8 w-full justify-center items-center">
+
+                    {/* Glow Gradient Create Button */}
+                    <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={createSession}
+                        className="group relative w-full md:w-auto p-[2px] rounded-2xl bg-gradient-to-r from-primary-400 via-purple-500 to-pink-500 shadow-2xl shadow-primary-500/25"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary-400 via-purple-500 to-pink-500 rounded-2xl blur-lg opacity-80 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <div className="relative flex items-center gap-4 bg-white/95 backdrop-blur-xl px-8 py-5 rounded-[14px] h-full w-full border border-white/50">
+                            <div className="w-12 h-12 flex-shrink-0 rounded-full bg-primary-50 flex items-center justify-center">
+                                <Plus className="text-primary-600 w-6 h-6 group-hover:scale-125 transition-transform duration-300" />
+                            </div>
+                            <div className="text-left pr-4">
+                                <h3 className="text-xl font-bold text-slate-800 tracking-tight group-hover:text-primary-600 transition-colors">Start Whiteboard</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">New Session</p>
+                            </div>
+                        </div>
+                    </motion.button>
+
+                    {/* Separators */}
+                    <div className="hidden md:block w-px h-16 bg-slate-200/60 font-bold backdrop-blur"></div>
+                    <div className="md:hidden w-16 h-px bg-slate-200/60 font-bold backdrop-blur"></div>
+
+                    {/* Join Session Command Bar */}
+                    <form onSubmit={joinSession} className="w-full md:w-auto relative group">
+                        <div className="relative flex items-center bg-white/70 backdrop-blur-2xl rounded-2xl shadow-xl shadow-slate-200/40 border-2 border-slate-200/60 p-2 focus-within:ring-4 focus-within:ring-primary-500/20 focus-within:border-primary-500 focus-within:bg-white transition-all overflow-hidden">
+                            {/* Inner Shadow simulate inset */}
+                            <div className="absolute inset-0 rounded-2xl shadow-[inset_0_2px_10px_rgba(0,0,0,0.03)] pointer-events-none"></div>
+                            <div className="pl-5 pr-3 text-slate-400 z-10">
+                                <Users className="w-6 h-6 group-focus-within:text-primary-500 transition-colors" />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Enter Session ID..."
+                                value={joinSessionId}
+                                onChange={(e) => setJoinSessionId(e.target.value)}
+                                className="flex-1 w-full md:w-64 bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400 text-lg font-medium px-2 py-4 z-10"
+                            />
+                            <motion.button
+                                type="submit"
+                                disabled={!joinSessionId.trim()}
+                                whileHover={joinSessionId.trim() ? { scale: 1.05 } : {}}
+                                whileTap={joinSessionId.trim() ? { scale: 0.95 } : {}}
+                                className={`ml-2 px-6 py-4 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-all z-10 ${joinSessionId.trim()
+                                    ? 'bg-slate-900 text-white hover:bg-slate-800 hover:shadow-md cursor-pointer'
+                                    : 'bg-slate-100/50 text-slate-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                Join <ArrowRight className="w-5 h-5 -mr-1" />
+                            </motion.button>
+                        </div>
+                    </form>
+
+                </motion.div>
+
+                {/* Footer Note */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8, duration: 0.8 }}
+                    className="mt-auto pb-8 text-sm text-gray-400 text-center"
+                >
+                    <p className="font-medium">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400 mr-1 opacity-80">✨</span>
+                        Pro tip: Share your Session ID instantly with your team.
+                    </p>
+                </motion.div>
+            </motion.div>
         </div>
     );
 };
